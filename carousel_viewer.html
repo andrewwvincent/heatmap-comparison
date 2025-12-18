@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heatmap Carousel Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* Side Panel */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, #16213e 0%, #0f3460 100%);
+            padding: 30px 20px;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .sidebar p {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 30px;
+        }
+
+        .city-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .city-btn {
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            color: #eee;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .city-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .city-btn:hover::before {
+            left: 100%;
+        }
+
+        .city-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(94, 156, 255, 0.5);
+            transform: translateX(5px);
+        }
+
+        .city-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .city-btn .count {
+            display: block;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 4px;
+            font-weight: 400;
+        }
+
+        .city-btn.active .count {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 30px 40px;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header h2 {
+            font-size: 2rem;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .header .subtitle {
+            color: #aaa;
+            font-size: 1rem;
+        }
+
+        /* Carousel Container */
+        .carousel-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            position: relative;
+        }
+
+        .carousel {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .carousel-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .carousel-item {
+            display: none;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .carousel-item.active {
+            display: flex;
+        }
+
+        .carousel-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: top center;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Navigation Buttons */
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .carousel-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .carousel-btn.prev {
+            left: 20px;
+        }
+
+        .carousel-btn.next {
+            right: 20px;
+        }
+
+        /* Indicators */
+        .carousel-indicators {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }
+
+        .indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .indicator:hover {
+            background: rgba(255, 255, 255, 0.5);
+            transform: scale(1.2);
+        }
+
+        .indicator.active {
+            background: #667eea;
+            width: 40px;
+            border-radius: 6px;
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Image Label */
+        .image-label {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            z-index: 10;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            color: #888;
+            font-size: 1.2rem;
+        }
+
+        .empty-state svg {
+            width: 100px;
+            height: 100px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        /* Keyboard Hints */
+        .keyboard-hints {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: #aaa;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .keyboard-hints kbd {
+            display: inline-block;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin: 0 3px;
+            color: #fff;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                padding: 20px;
+                max-height: 200px;
+            }
+
+            .city-list {
+                flex-direction: row;
+                overflow-x: auto;
+            }
+
+            .city-btn {
+                min-width: 150px;
+            }
+
+            .carousel-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1>🗺️ Cities</h1>
+        <p>Select a city to view heatmaps</p>
+        <div class="city-list" id="cityList">
+            <!-- City buttons will be generated here -->
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2 id="cityTitle">Select a City</h2>
+            <div class="subtitle" id="citySubtitle">Choose from the sidebar</div>
+        </div>
+
+        <div class="carousel-container">
+            <div class="carousel" id="carousel">
+                <button class="carousel-btn prev" id="prevBtn">‹</button>
+                <button class="carousel-btn next" id="nextBtn">›</button>
+                
+                <div class="image-label" id="imageLabel" style="display: none;"></div>
+                
+                <div class="carousel-inner" id="carouselInner">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        <p>Select a city to view heatmaps</p>
+                    </div>
+                </div>
+
+                <div class="carousel-indicators" id="indicators" style="display: none;"></div>
+                <div class="keyboard-hints">
+                    <kbd>←</kbd> <kbd>→</kbd> Navigate images | <kbd>↑</kbd> <kbd>↓</kbd> Change city
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Image data structure
+        const imageData = {
+            'Austin': [
+                { path: 'Cropped/Austin-ES+-Final.png', label: 'ES+' },
+                { path: 'Cropped/Austin-ES-Final.png', label: 'ES' },
+                { path: 'Cropped/Austin-WS-Final.png', label: 'WS' }
+            ],
+            'Chantilly': [
+                { path: 'Cropped/Chantilly-ES+-Final.png', label: 'ES+' },
+                { path: 'Cropped/Chantilly-ES-Final.png', label: 'ES' },
+                { path: 'Cropped/Chantilly-WS-Final.png', label: 'WS' }
+            ],
+            'Charlotte': [
+                { path: 'Cropped/Chatlotte-ES+-Final.png', label: 'ES+' },
+                { path: 'Cropped/Charlotte-ES-Final.png', label: 'ES' },
+                { path: 'Cropped/Charlotte-WS-Final.png', label: 'WS' }
+            ],
+            'Raleigh': [
+                { path: 'Cropped/Raleigh-ES+-Final.png', label: 'ES+' },
+                { path: 'Cropped/Raleigh-ES-Final.png', label: 'ES' },
+                { path: 'Cropped/Raleigh-WS-Final.png', label: 'WS' }
+            ]
+        };
+
+        let currentCity = null;
+        let currentIndex = 0;
+        const cities = Object.keys(imageData);
+
+        // Initialize
+        function init() {
+            renderCityButtons();
+        }
+
+        // Render city buttons
+        function renderCityButtons() {
+            const cityList = document.getElementById('cityList');
+            cityList.innerHTML = '';
+
+            cities.forEach(city => {
+                const btn = document.createElement('button');
+                btn.className = 'city-btn';
+                btn.innerHTML = `
+                    ${city}
+                    <span class="count">${imageData[city].length} heatmaps</span>
+                `;
+                btn.addEventListener('click', () => selectCity(city));
+                cityList.appendChild(btn);
+            });
+        }
+
+        // Select city
+        function selectCity(city) {
+            currentCity = city;
+            currentIndex = 0;
+
+            // Update active state
+            document.querySelectorAll('.city-btn').forEach((btn, idx) => {
+                btn.classList.toggle('active', cities[idx] === city);
+            });
+
+            // Update header
+            document.getElementById('cityTitle').textContent = city;
+            document.getElementById('citySubtitle').textContent = `${imageData[city].length} heatmap variations`;
+
+            // Load carousel
+            loadCarousel();
+        }
+
+        // Load carousel for current city
+        function loadCarousel() {
+            const carouselInner = document.getElementById('carouselInner');
+            const indicators = document.getElementById('indicators');
+            const images = imageData[currentCity];
+
+            carouselInner.innerHTML = '';
+            indicators.innerHTML = '';
+
+            images.forEach((img, index) => {
+                // Create carousel item
+                const item = document.createElement('div');
+                item.className = `carousel-item ${index === 0 ? 'active' : ''}`;
+                item.innerHTML = `<img src="${img.path}" alt="${currentCity} - ${img.label}">`;
+                carouselInner.appendChild(item);
+
+                // Create indicator
+                const indicator = document.createElement('div');
+                indicator.className = `indicator ${index === 0 ? 'active' : ''}`;
+                indicator.addEventListener('click', () => goToSlide(index));
+                indicators.appendChild(indicator);
+            });
+
+            indicators.style.display = 'flex';
+            document.getElementById('imageLabel').style.display = 'block';
+            updateLabel();
+        }
+
+        // Navigate carousel
+        function goToSlide(index) {
+            const images = imageData[currentCity];
+            currentIndex = (index + images.length) % images.length;
+
+            const items = document.querySelectorAll('.carousel-item');
+            const indicators = document.querySelectorAll('.indicator');
+
+            items.forEach((item, idx) => {
+                item.classList.toggle('active', idx === currentIndex);
+            });
+
+            indicators.forEach((indicator, idx) => {
+                indicator.classList.toggle('active', idx === currentIndex);
+            });
+
+            updateLabel();
+        }
+
+        function nextSlide() {
+            if (!currentCity) return;
+            goToSlide(currentIndex + 1);
+        }
+
+        function prevSlide() {
+            if (!currentCity) return;
+            goToSlide(currentIndex - 1);
+        }
+
+        function updateLabel() {
+            const label = document.getElementById('imageLabel');
+            const images = imageData[currentCity];
+            label.textContent = `${currentCity} - ${images[currentIndex].label}`;
+        }
+
+        // Event listeners
+        document.getElementById('prevBtn').addEventListener('click', prevSlide);
+        document.getElementById('nextBtn').addEventListener('click', nextSlide);
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                prevSlide();
+            } else if (e.key === 'ArrowRight') {
+                nextSlide();
+            } else if (e.key === 'ArrowUp') {
+                // Previous city
+                if (!currentCity) {
+                    selectCity(cities[0]);
+                } else {
+                    const currentCityIndex = cities.indexOf(currentCity);
+                    const newIndex = (currentCityIndex - 1 + cities.length) % cities.length;
+                    selectCity(cities[newIndex]);
+                }
+            } else if (e.key === 'ArrowDown') {
+                // Next city
+                if (!currentCity) {
+                    selectCity(cities[0]);
+                } else {
+                    const currentCityIndex = cities.indexOf(currentCity);
+                    const newIndex = (currentCityIndex + 1) % cities.length;
+                    selectCity(cities[newIndex]);
+                }
+            }
+        });
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
